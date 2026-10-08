@@ -1,0 +1,86 @@
+name: Publish salmon evidence map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-pages.yml'
+      - 'index.html'
+      - 'dashboard-data.js'
+      - 'methodology.html'
+      - 'results.html'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download current validated public outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/thesalmonandthetomato/LivingEvidenceMap/workflow01-final-architecture"
+          curl --fail --location --retry 4 --retry-all-errors "$base/docs/index.html" -o index.html
+          curl --fail --location --retry 4 --retry-all-errors "$base/public_export/dashboard-data.js" -o dashboard-data.js
+          curl --fail --location --retry 4 --retry-all-errors "$base/docs/reporting/workflow_09/manuscript/methods.html" -o methodology.html
+          curl --fail --location --retry 4 --retry-all-errors "$base/docs/reporting/workflow_09/manuscript/results.html" -o results.html
+          touch .nojekyll
+
+          test -s index.html
+          test -s dashboard-data.js
+          test -s methodology.html
+          test -s results.html
+          test "$(wc -c < dashboard-data.js)" -gt 40000000
+          grep -q './dashboard-data.js' index.html
+          grep -q './methodology.html' index.html
+          grep -q './results.html' index.html
+
+      - name: Commit public site files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dashboard-data.js methodology.html results.html .nojekyll
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish current salmon evidence map [skip ci]"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Prepare Pages bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/site
+          cp index.html dashboard-data.js methodology.html results.html .nojekyll /tmp/site/
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artefact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/site
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
