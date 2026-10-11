@@ -9,6 +9,8 @@ on:
       - 'dashboard-data.js'
       - 'methodology.html'
       - 'results.html'
+      - 'docs/test/index.html'
+      - 'docs/test/dashboard-data.js'
 
 permissions:
   contents: read
@@ -41,6 +43,10 @@ jobs:
           grep -q './results.html' index.html
           mkdir -p /tmp/site
           cp index.html dashboard-data.js methodology.html results.html .nojekyll /tmp/site/
+          if [ -s docs/test/index.html ] && [ -s docs/test/dashboard-data.js ]; then
+            mkdir -p /tmp/site/test
+            cp docs/test/index.html docs/test/dashboard-data.js /tmp/site/test/
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
