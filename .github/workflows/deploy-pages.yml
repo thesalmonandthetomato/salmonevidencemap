@@ -11,8 +11,6 @@ on:
       - 'results.html'
       - 'docs/test/index.html'
       - 'docs/test/dashboard-data.js'
-      - 'index2.html'
-      - 'index2-data.js'
       - 'dashboard-search-index.js'
       - '.github/workflows/deploy-pages.yml'
 
@@ -47,12 +45,9 @@ jobs:
           grep -q './results.html' index.html
           mkdir -p /tmp/site
           cp index.html dashboard-data.js methodology.html results.html .nojekyll /tmp/site/
-          test -s index2.html
-          test -s index2-data.js
           test -s dashboard-search-index.js
-          grep -q './index2-data.js' index2.html
-          grep -q './dashboard-search-index.js' index2.html
-          cp index2.html index2-data.js dashboard-search-index.js /tmp/site/
+          grep -q './dashboard-search-index.js' index.html
+          cp dashboard-search-index.js /tmp/site/
           if [ -s docs/test/index.html ] && [ -s docs/test/dashboard-data.js ]; then
             mkdir -p /tmp/site/test
             cp docs/test/index.html docs/test/dashboard-data.js /tmp/site/test/
