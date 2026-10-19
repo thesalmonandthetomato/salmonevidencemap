@@ -1,0 +1,48 @@
+name: Monthly manual RIS reminder launcher
+
+on:
+  schedule:
+    # 09:00 Europe/London: 08:00 UTC in BST, 09:00 UTC in GMT.
+    - cron: '0 8,9 17 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-reminder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check UK local reminder time
+        id: due
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime, os
+          from zoneinfo import ZoneInfo
+          uk = datetime.datetime.now(ZoneInfo("Europe/London"))
+          due = (uk.day == 17 and uk.hour == 9)
+          if os.environ["EVENT_NAME"] == "workflow_dispatch":
+              due = True
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"due={'true' if due else 'false'}\n")
+          print(f"UK local time {uk.isoformat()}, due={due}")
+          PY
+
+      - name: Dispatch reminder in the private pipeline repository
+        if: steps.due.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LIVING_EVIDENCE_MAP_DISPATCH_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Configure LIVING_EVIDENCE_MAP_DISPATCH_PAT in this repository's Actions secrets."
+            exit 1
+          fi
+          gh workflow run workflow_00_monthly_ris_email_reminder.yml \\
+            --repo thesalmonandthetomato/LivingEvidenceMap \\
+            --ref workflow01-final-architecture
