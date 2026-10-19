@@ -43,6 +43,6 @@ jobs:
             echo "::error::Configure LIVING_EVIDENCE_MAP_DISPATCH_PAT in this repository's Actions secrets."
             exit 1
           fi
-          gh workflow run workflow_00_monthly_ris_email_reminder.yml \\
-            --repo thesalmonandthetomato/LivingEvidenceMap \\
+          gh workflow run workflow_00_monthly_ris_email_reminder.yml \
+            --repo thesalmonandthetomato/LivingEvidenceMap \
             --ref workflow01-final-architecture
