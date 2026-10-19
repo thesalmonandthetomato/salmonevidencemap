@@ -47,18 +47,18 @@ jobs:
           path="user_input/monthly_ris_reminder_trigger.txt"
           ref="workflow01-final-architecture"
           timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          content="$(printf 'Monthly manual RIS reminder trigger: %s\\n' "$timestamp" | base64 -w0)"
+          content="$(printf 'Monthly manual RIS reminder trigger: %s\n' "$timestamp" | base64 -w0)"
           existing_sha="$(gh api "repos/$repo/contents/$path?ref=$ref" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$existing_sha" ]; then
-            gh api --method PUT "repos/$repo/contents/$path" \\
-              -f message="Trigger monthly CAB and PQD&T reminder" \\
-              -f branch="$ref" \\
-              -f content="$content" \\
+            gh api --method PUT "repos/$repo/contents/$path" \
+              -f message="Trigger monthly CAB and PQD&T reminder" \
+              -f branch="$ref" \
+              -f content="$content" \
               -f sha="$existing_sha" >/dev/null
           else
-            gh api --method PUT "repos/$repo/contents/$path" \\
-              -f message="Trigger monthly CAB and PQD&T reminder" \\
-              -f branch="$ref" \\
+            gh api --method PUT "repos/$repo/contents/$path" \
+              -f message="Trigger monthly CAB and PQD&T reminder" \
+              -f branch="$ref" \
               -f content="$content" >/dev/null
           fi
           echo "PASS: reminder trigger pushed to private production branch"
