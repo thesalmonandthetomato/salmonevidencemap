@@ -32,7 +32,7 @@ jobs:
           print(f"UK local time {uk.isoformat()}, due={due}")
           PY
 
-      - name: Dispatch reminder in the private pipeline repository
+      - name: Trigger private reminder by updating a branch-specific file
         if: steps.due.outputs.due == 'true'
         env:
           GH_TOKEN: ${{ secrets.LIVING_EVIDENCE_MAP_DISPATCH_PAT }}
@@ -40,9 +40,25 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
-            echo "::error::Configure LIVING_EVIDENCE_MAP_DISPATCH_PAT in this repository's Actions secrets."
+            echo "::error::LIVING_EVIDENCE_MAP_DISPATCH_PAT is missing in salmonevidencemap."
             exit 1
           fi
-          gh workflow run workflow_00_monthly_ris_email_reminder.yml \
-            --repo thesalmonandthetomato/LivingEvidenceMap \
-            --ref workflow01-final-architecture
+          repo="thesalmonandthetomato/LivingEvidenceMap"
+          path="user_input/monthly_ris_reminder_trigger.txt"
+          ref="workflow01-final-architecture"
+          timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          content="$(printf 'Monthly manual RIS reminder trigger: %s\\n' "$timestamp" | base64 -w0)"
+          existing_sha="$(gh api "repos/$repo/contents/$path?ref=$ref" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$existing_sha" ]; then
+            gh api --method PUT "repos/$repo/contents/$path" \\
+              -f message="Trigger monthly CAB and PQD&T reminder" \\
+              -f branch="$ref" \\
+              -f content="$content" \\
+              -f sha="$existing_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$repo/contents/$path" \\
+              -f message="Trigger monthly CAB and PQD&T reminder" \\
+              -f branch="$ref" \\
+              -f content="$content" >/dev/null
+          fi
+          echo "PASS: reminder trigger pushed to private production branch"
