@@ -1,0 +1,58 @@
+name: Monthly W00 update scheduler
+
+on:
+  schedule:
+    # 09:00 Europe/London: 08:00 UTC during BST, 09:00 UTC during GMT.
+    - cron: '0 8,9 19 * *'
+
+permissions:
+  contents: read
+
+jobs:
+  schedule-monthly-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm the 19th at 09:00 UK local time
+        id: due
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime, os
+          from zoneinfo import ZoneInfo
+          uk = datetime.datetime.now(ZoneInfo("Europe/London"))
+          due = uk.day == 19 and uk.hour == 9
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"due={'true' if due else 'false'}\n")
+          print(f"UK local time: {uk.isoformat()}; scheduled launch due: {due}")
+          PY
+
+      - name: Signal the existing W00 monthly mode on its production branch
+        if: steps.due.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LIVING_EVIDENCE_MAP_DISPATCH_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" || { echo "::error::Missing LIVING_EVIDENCE_MAP_DISPATCH_PAT"; exit 1; }
+          repo="thesalmonandthetomato/LivingEvidenceMap"
+          ref="workflow01-final-architecture"
+          path="user_input/monthly_w00_schedule_trigger.txt"
+          uk_month="$(TZ=Europe/London date +'%Y-%m')"
+          content="$(printf 'Monthly W00 schedule trigger for %s\n' "$uk_month" | base64 -w0)"
+          existing_sha="$(gh api "repos/$repo/contents/$path?ref=$ref" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$existing_sha" ]; then
+            existing_text="$(gh api "repos/$repo/contents/$path?ref=$ref" --jq '.content' | base64 -d)"
+            if [ "$existing_text" = "Monthly W00 schedule trigger for $uk_month" ]; then
+              echo "Already signalled W00 for $uk_month; no duplicate commit"
+              exit 0
+            fi
+            gh api --method PUT "repos/$repo/contents/$path" \
+              -f message="Schedule monthly W00 update for $uk_month" \
+              -f branch="$ref" -f content="$content" -f sha="$existing_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$repo/contents/$path" \
+              -f message="Schedule monthly W00 update for $uk_month" \
+              -f branch="$ref" -f content="$content" >/dev/null
+          fi
+          echo "Scheduled W00 monthly on $ref for $uk_month"
