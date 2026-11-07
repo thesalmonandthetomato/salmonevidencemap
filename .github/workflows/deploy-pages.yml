@@ -2,6 +2,8 @@ name: Publish salmon evidence map
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [w10_publish]
   push:
     branches: [main]
     paths:
